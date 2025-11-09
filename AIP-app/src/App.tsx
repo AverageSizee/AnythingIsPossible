@@ -1,11 +1,13 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import HomePage from './Pages/HomePage'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import AdminDashboard from './Pages/AdminDashboard'
 import AddProduct from './Pages/AddProduct'
 import './App.css'
 
 function App() {
   return (
+    <>
+      <BrowserRouter>
     <Router>
       <div className="app">
         <nav className="nav">
