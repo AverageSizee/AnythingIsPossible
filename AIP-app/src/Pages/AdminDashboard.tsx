@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { Product } from '../types/Product';
-import './AdminPage.css';
+import './AdminDashboard.css';
 
-const AdminPage = () => {
+const AdminDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>({
     name: '',
     description: '',
@@ -18,9 +19,9 @@ const AdminPage = () => {
     available: true,
   });
 
-  // Load products from localStorage on mount
+  // Load products from sessionStorage on mount
   useEffect(() => {
-    const savedProducts = localStorage.getItem('products');
+    const savedProducts = sessionStorage.getItem('products');
     if (savedProducts) {
       try {
         const parsed = JSON.parse(savedProducts);
@@ -29,22 +30,32 @@ const AdminPage = () => {
           ...product,
           price: typeof product.price === 'string' ? parseFloat(product.price) || 0 : Number(product.price) || 0,
           stock: typeof product.stock === 'string' ? parseInt(product.stock, 10) || 0 : Number(product.stock) || 0,
+          available: product.available !== undefined ? product.available : true,
         }));
         setProducts(normalized);
       } catch (error) {
-        console.error('Error loading products from localStorage:', error);
+        console.error('Error loading products from sessionStorage:', error);
       }
     }
   }, []);
 
-  // Save products to localStorage whenever products change
+  // Save products to sessionStorage whenever products change
   useEffect(() => {
-    localStorage.setItem('products', JSON.stringify(products));
+    sessionStorage.setItem('products', JSON.stringify(products));
   }, [products]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const input = e.target as HTMLInputElement;
+    
+    // Handle checkbox
+    if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: input.checked,
+      }));
+      return;
+    }
     
     // Convert number inputs to actual numbers
     if (type === 'number') {
@@ -68,9 +79,11 @@ const AdminPage = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!editingProduct) return;
+
     // Validate required fields
     if (!formData.name.trim()) {
       alert('Please enter a product name');
@@ -112,29 +125,18 @@ const AdminPage = () => {
       stock: typeof formData.stock === 'string' ? parseInt(String(formData.stock), 10) || 0 : Number(formData.stock) || 0,
     };
     
-    if (editingProduct) {
-      // Update existing product
-      setProducts(prev =>
-        prev.map(product =>
-          product.id === editingProduct.id
-            ? {
-                ...product,
-                ...normalizedFormData,
-                updatedAt: new Date().toISOString(),
-              }
-            : product
-        )
-      );
-    } else {
-      // Create new product
-      const newProduct: Product = {
-        ...normalizedFormData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setProducts(prev => [...prev, newProduct]);
-    }
+    // Update existing product
+    setProducts(prev =>
+      prev.map(product =>
+        product.id === editingProduct.id
+          ? {
+              ...product,
+              ...normalizedFormData,
+              updatedAt: new Date().toISOString(),
+            }
+          : product
+      )
+    );
 
     // Reset form
     setFormData({
@@ -149,7 +151,7 @@ const AdminPage = () => {
       available: true,
     });
     setEditingProduct(null);
-    setIsFormOpen(false);
+    setIsEditFormOpen(false);
   };
 
   const handleEdit = (product: Product) => {
@@ -165,7 +167,7 @@ const AdminPage = () => {
       stock: product.stock,
       available: product.available,
     });
-    setIsFormOpen(true);
+    setIsEditFormOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -187,29 +189,23 @@ const AdminPage = () => {
       available: true,
     });
     setEditingProduct(null);
-    setIsFormOpen(false);
+    setIsEditFormOpen(false);
   };
 
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <h1>Admin Panel - Product Management</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setEditingProduct(null);
-            setIsFormOpen(true);
-          }}
-        >
+    <div className="admin-dashboard">
+      <div className="dashboard-header">
+        <h1>Admin Dashboard</h1>
+        <Link to="/admin/add-product" className="btn btn-primary">
           + Add New Product
-        </button>
+        </Link>
       </div>
 
-      {isFormOpen && (
+      {isEditFormOpen && editingProduct && (
         <div className="form-overlay">
           <div className="form-container">
-            <h2>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-            <form onSubmit={handleSubmit}>
+            <h2>Edit Product</h2>
+            <form onSubmit={handleUpdate}>
               <div className="form-group">
                 <label htmlFor="name">Product Name *</label>
                 <input
@@ -321,9 +317,22 @@ const AdminPage = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    id="available"
+                    name="available"
+                    checked={formData.available}
+                    onChange={handleInputChange}
+                  />
+                  <span>Product is available</span>
+                </label>
+              </div>
+
               <div className="form-actions">
                 <button type="submit" className="btn btn-primary">
-                  {editingProduct ? 'Update Product' : 'Create Product'}
+                  Update Product
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={handleCancel}>
                   Cancel
@@ -341,9 +350,10 @@ const AdminPage = () => {
           </div>
         ) : (
           products.map(product => (
-            <div key={product.id} className="product-card">
+            <div key={product.id} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
               <div className="product-image">
                 <img src={product.imageUrl} alt={product.name} />
+                {!product.available && <div className="unavailable-badge">Unavailable</div>}
               </div>
               <div className="product-info">
                 <h3>{product.name}</h3>
@@ -352,6 +362,11 @@ const AdminPage = () => {
                 <div className="product-details">
                   <span className="product-price">${(Number(product.price) || 0).toFixed(2)}</span>
                   <span className="product-stock">Stock: {Number(product.stock) || 0}</span>
+                </div>
+                <div className="product-availability">
+                  <span className={`availability-badge ${product.available ? 'available' : 'unavailable'}`}>
+                    {product.available ? 'Available' : 'Unavailable'}
+                  </span>
                 </div>
                 <div className="product-tags">
                   <span className="tag">Sizes: {product.size.join(', ')}</span>
@@ -380,5 +395,5 @@ const AdminPage = () => {
   );
 };
 
-export default AdminPage;
+export default AdminDashboard;
 
