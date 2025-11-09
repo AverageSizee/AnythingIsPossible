@@ -1,9 +1,15 @@
+import HomePage from './Pages/HomePage'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import AdminPage from './Pages/AdminPage'
 import './App.css'
 
 function App() {
   return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </BrowserRouter>
     <Router>
       <div className="app">
         <nav className="nav">
