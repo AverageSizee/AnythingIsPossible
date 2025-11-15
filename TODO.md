@@ -1,0 +1,3 @@
+- Create AdminNavbar.tsx component with burger menu, sidebar, email display, and logout
+- Update AdminDashboard.tsx to include AdminNavbar
+- Test navbar functionality in browser

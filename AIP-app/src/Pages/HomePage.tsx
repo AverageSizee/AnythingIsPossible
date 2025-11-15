@@ -55,7 +55,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Carousel */}
-      <section className="relative h-96 md:h-[600px] overflow-hidden bg-neutral-900">
+      <section className="relative h-96 md:h-[600px] overflow-hidden bg-neutral-900 mt-[73px]">
         <div className="relative w-full h-full">
           {slides.map((slide, index) => (
             <div
