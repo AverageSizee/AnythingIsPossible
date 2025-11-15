@@ -3,32 +3,31 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { Product } from '../types/Product';
 import { uploadToCloudinary } from '../services/CloudinaryService';
-import './AddProduct.css';
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<{
     product_name: string;
     description: string;
-    short_descrip?: string;
+    short_description?: string;
     price: number;
     is_sale?: boolean;
     sales_price?: number;
-    stock_quantit: number;
+    stock_quantity: number;
     is_in_stock: boolean;
-    low_stock_thr?: number;
+    low_stock_threshold?: number;
     Size: string;
     images: string[];
   }>({
     product_name: '',
     description: '',
-    short_descrip: '',
+    short_description: '',
     price: 0,
     is_sale: false,
     sales_price: 0,
-    stock_quantit: 0,
+    stock_quantity: 0,
     is_in_stock: true,
-    low_stock_thr: 5,
+    low_stock_threshold: 5,
     Size: '',
     images: [],
   });
@@ -91,7 +90,7 @@ const AddProduct = () => {
       alert('Please enter a valid price greater than 0');
       return;
     }
-    if (formData.stock_quantit < 0) {
+    if (formData.stock_quantity < 0) {
       alert('Stock cannot be negative');
       return;
     }
@@ -122,13 +121,13 @@ const AddProduct = () => {
           {
             product_name: formData.product_name,
             description: formData.description,
-            short_description: formData.short_descrip,
+            short_descriptiontion: formData.short_description,
             price: formData.price,
             is_sale: formData.is_sale,
             sales_price: formData.sales_price,
-            stock_quantity: formData.stock_quantit,
+            stock_quantity: formData.stock_quantity,
             is_in_stock: formData.is_in_stock,
-            low_stock_threshold: formData.low_stock_thr,
+            low_stock_threshold: formData.low_stock_threshold,
             Size: formData.Size,
             images: imageUrls,
           }
@@ -145,13 +144,13 @@ const AddProduct = () => {
       setFormData({
         product_name: '',
         description: '',
-        short_descrip: '',
+        short_description: '',
         price: 0,
         is_sale: false,
         sales_price: 0,
-        stock_quantit: 0,
+        stock_quantity: 0,
         is_in_stock: true,
-        low_stock_thr: 5,
+        low_stock_threshold: 5,
         Size: '',
         images: [],
       });
@@ -168,55 +167,58 @@ const AddProduct = () => {
   };
 
   return (
-    <div className="add-product-page">
-      <div className="page-header">
-        <h1>Add New Product</h1>
-        <Link to="/admin/dashboard" className="btn btn-secondary">
+    <div className="max-w-7xl mx-auto p-8 min-h-screen bg-gray-100">
+      <div className="flex justify-between items-center mb-6 p-6 bg-white rounded-lg shadow-md">
+        <h1 className="m-0 text-3xl text-gray-800">Add New Product</h1>
+        <Link to="/admin/dashboard" className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-gray-500">
           ← Back to Dashboard
         </Link>
       </div>
 
-      <div className="form-wrapper">
-        <form onSubmit={handleSubmit} className="product-form">
-          <div className="form-group">
-            <label htmlFor="product_name">Product Name *</label>
+      <div className="bg-white rounded-xl p-8 shadow-md">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="mb-5">
+            <label htmlFor="product_name" className="block mb-2 font-semibold text-gray-700 text-sm">Product Name *</label>
             <input
               type="text"
               id="product_name"
               name="product_name"
               value={formData.product_name}
               onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="description">Description *</label>
+          <div className="mb-5">
+            <label htmlFor="description" className="block mb-2 font-semibold text-gray-700 text-sm">Description *</label>
             <textarea
               id="description"
               name="description"
               value={formData.description}
               onChange={handleInputChange}
               rows={4}
+              className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="short_descrip">Short Description</label>
+          <div className="mb-5">
+            <label htmlFor="short_description" className="block mb-2 font-semibold text-gray-700 text-sm">Short Description</label>
             <input
               type="text"
-              id="short_descrip"
-              name="short_descrip"
-              value={formData.short_descrip}
+              id="short_description"
+              name="short_description"
+              value={formData.short_description}
               onChange={handleInputChange}
               placeholder="Brief description for listings"
+              className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="price">Price ($) *</label>
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label htmlFor="price" className="block mb-2 font-semibold text-gray-700 text-sm">Price ($) *</label>
               <input
                 type="number"
                 id="price"
@@ -225,27 +227,29 @@ const AddProduct = () => {
                 onChange={handleInputChange}
                 min="0"
                 step="0.01"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="stock_quantit">Stock Quantity *</label>
+            <div>
+              <label htmlFor="stock_quantity" className="block mb-2 font-semibold text-gray-700 text-sm">Stock Quantity *</label>
               <input
                 type="number"
-                id="stock_quantit"
-                name="stock_quantit"
-                value={formData.stock_quantit}
+                id="stock_quantity"
+                name="stock_quantity"
+                value={formData.stock_quantity}
                 onChange={handleInputChange}
                 min="0"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 required
               />
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="sales_price">Sale Price ($)</label>
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label htmlFor="sales_price" className="block mb-2 font-semibold text-gray-700 text-sm">Sale Price ($)</label>
               <input
                 type="number"
                 id="sales_price"
@@ -254,24 +258,26 @@ const AddProduct = () => {
                 onChange={handleInputChange}
                 min="0"
                 step="0.01"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="low_stock_thr">Low Stock Threshold</label>
+            <div>
+              <label htmlFor="low_stock_threshold" className="block mb-2 font-semibold text-gray-700 text-sm">Low Stock Threshold</label>
               <input
                 type="number"
-                id="low_stock_thr"
-                name="low_stock_thr"
-                value={formData.low_stock_thr}
+                id="low_stock_threshold"
+                name="low_stock_threshold"
+                value={formData.low_stock_threshold}
                 onChange={handleInputChange}
                 min="0"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="Size">Size *</label>
+          <div className="mb-5">
+            <label htmlFor="Size" className="block mb-2 font-semibold text-gray-700 text-sm">Size *</label>
             <input
               type="text"
               id="Size"
@@ -279,12 +285,13 @@ const AddProduct = () => {
               value={formData.Size}
               onChange={handleInputChange}
               placeholder="e.g., S, M, L, XL"
+              className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="images">Images/Videos</label>
+          <div className="mb-5">
+            <label htmlFor="images" className="block mb-2 font-semibold text-gray-700 text-sm">Images/Videos</label>
             <input
               type="file"
               id="images"
@@ -292,52 +299,55 @@ const AddProduct = () => {
               multiple
               accept="image/*,video/*"
               onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {selectedFiles.length > 0 && (
-              <div className="selected-files">
-                <p>Selected files: {selectedFiles.length}</p>
-                <ul>
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-semibold text-gray-700">Selected files: {selectedFiles.length}</p>
+                <ul className="list-disc list-inside text-sm text-gray-600 mt-2">
                   {selectedFiles.map((file, index) => (
-                    <li key={index}>{file.name}</li>
+                    <li key={index} className="text-gray-700">{file.name}</li>
                   ))}
                 </ul>
               </div>
             )}
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="checkbox-label">
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id="is_sale"
                   name="is_sale"
                   checked={formData.is_sale}
                   onChange={handleInputChange}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                <span>On Sale</span>
+                <span className="text-gray-700 font-semibold">On Sale</span>
               </label>
             </div>
 
-            <div className="form-group">
-              <label className="checkbox-label">
+            <div>
+              <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id="is_in_stock"
                   name="is_in_stock"
                   checked={formData.is_in_stock}
                   onChange={handleInputChange}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                <span>In Stock</span>
+                <span className="text-gray-700 font-semibold">In Stock</span>
               </label>
             </div>
           </div>
 
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={uploading}>
+          <div className="flex gap-4 mt-8 justify-end">
+            <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-blue-500 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled={uploading}>
               {uploading ? 'Uploading...' : 'Create Product'}
             </button>
-            <Link to="/admin/dashboard" className="btn btn-secondary">
+            <Link to="/admin/dashboard" className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-gray-500">
               Cancel
             </Link>
           </div>

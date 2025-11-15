@@ -13,7 +13,7 @@ const parseCloudinaryUrl = (url: string): CloudinaryConfig => {
     cloudName: match[3],
     apiKey: match[1],
     apiSecret: match[2],
-  };
+  }; 
 };
 
 const generateSignature = async (params: Record<string, string>, apiSecret: string): Promise<string> => {
@@ -40,7 +40,6 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
 
   const params: Record<string, string> = {
     timestamp,
-    api_key: apiKey,
   };
 
   const signature = await generateSignature(params, apiSecret);

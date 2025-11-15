@@ -3,13 +3,13 @@ export interface Product {
   created_at: string;
   product_name: string;
   description: string;
-  short_descrip?: string;
+  short_description?: string;
   price: number;
   is_sale?: boolean;
   sales_price?: number;
-  stock_quantit: number;
+  stock_quantity: number;
   is_in_stock: boolean;
-  low_stock_thr?: number;
+  low_stock_threshold?: number;
   Size: string;
   images?: string[]; // Array of Cloudinary URLs for images/videos
   // Legacy fields for backward compatibility

@@ -1,48 +1,62 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 import type { Product } from '../types/Product';
-import './AdminDashboard.css';
 
 const AdminDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [formData, setFormData] = useState<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>({
-    name: '',
+  const [formData, setFormData] = useState<{
+    product_name: string;
+    description: string;
+    short_description?: string;
+    price: number;
+    is_sale?: boolean;
+    sales_price?: number;
+    stock_quantity: number;
+    is_in_stock: boolean;
+    low_stock_threshold?: number;
+    Size: string;
+    images: string[];
+  }>({
+    product_name: '',
     description: '',
+    short_description: '',
     price: 0,
-    category: '',
-    size: [],
-    color: [],
-    imageUrl: '',
-    stock: 0,
-    available: true,
+    is_sale: false,
+    sales_price: 0,
+    stock_quantity: 0,
+    is_in_stock: true,
+    low_stock_threshold: 5,
+    Size: '',
+    images: [],
   });
 
-  // Load products from sessionStorage on mount
+  // Load products from Supabase on mount
   useEffect(() => {
-    const savedProducts = sessionStorage.getItem('products');
-    if (savedProducts) {
+    const fetchProducts = async () => {
       try {
-        const parsed = JSON.parse(savedProducts);
-        // Normalize data: ensure price and stock are numbers
-        const normalized = parsed.map((product: Product) => ({
-          ...product,
-          price: typeof product.price === 'string' ? parseFloat(product.price) || 0 : Number(product.price) || 0,
-          stock: typeof product.stock === 'string' ? parseInt(product.stock, 10) || 0 : Number(product.stock) || 0,
-          available: product.available !== undefined ? product.available : true,
-        }));
-        setProducts(normalized);
-      } catch (error) {
-        console.error('Error loading products from sessionStorage:', error);
-      }
-    }
-  }, []);
+        const { data, error } = await supabase
+          .from('Products')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-  // Save products to sessionStorage whenever products change
-  useEffect(() => {
-    sessionStorage.setItem('products', JSON.stringify(products));
-  }, [products]);
+        if (error) {
+          console.error('Error fetching products:', error);
+          alert('Error loading products: ' + error.message);
+          return;
+        }
+
+        setProducts(data || []);
+      } catch (error) {
+        console.error('Unexpected error fetching products:', error);
+        alert('An unexpected error occurred while loading products');
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -79,13 +93,13 @@ const AdminDashboard = () => {
     }));
   };
 
-  const handleUpdate = (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!editingProduct) return;
 
     // Validate required fields
-    if (!formData.name.trim()) {
+    if (!formData.product_name.trim()) {
       alert('Please enter a product name');
       return;
     }
@@ -97,142 +111,204 @@ const AdminDashboard = () => {
       alert('Please enter a valid price greater than 0');
       return;
     }
-    if (formData.stock < 0) {
+    if (formData.stock_quantity < 0) {
       alert('Stock cannot be negative');
       return;
     }
-    if (!formData.category) {
-      alert('Please select a category');
-      return;
-    }
-    if (formData.size.length === 0) {
+    if (!formData.Size.trim()) {
       alert('Please enter at least one size');
       return;
     }
-    if (formData.color.length === 0) {
-      alert('Please enter at least one color');
+    if (formData.images.length === 0) {
+      alert('Please provide at least one image');
       return;
     }
-    if (!formData.imageUrl.trim()) {
-      alert('Please enter an image URL');
-      return;
-    }
-    
-    // Ensure price and stock are numbers
-    const normalizedFormData = {
-      ...formData,
-      price: typeof formData.price === 'string' ? parseFloat(formData.price) || 0 : Number(formData.price) || 0,
-      stock: typeof formData.stock === 'string' ? parseInt(String(formData.stock), 10) || 0 : Number(formData.stock) || 0,
-    };
-    
-    // Update existing product
-    setProducts(prev =>
-      prev.map(product =>
-        product.id === editingProduct.id
-          ? {
-              ...product,
-              ...normalizedFormData,
-              updatedAt: new Date().toISOString(),
-            }
-          : product
-      )
-    );
 
-    // Reset form
-    setFormData({
-      name: '',
-      description: '',
-      price: 0,
-      category: '',
-      size: [],
-      color: [],
-      imageUrl: '',
-      stock: 0,
-      available: true,
-    });
-    setEditingProduct(null);
-    setIsEditFormOpen(false);
+    try {
+      const { error } = await supabase
+        .from('Products')
+        .update({
+          product_name: formData.product_name,
+          description: formData.description,
+          short_description: formData.short_description,
+          price: formData.price,
+          is_sale: formData.is_sale,
+          sales_price: formData.sales_price,
+          stock_quantity: formData.stock_quantity,
+          is_in_stock: formData.is_in_stock,
+          low_stock_threshold: formData.low_stock_threshold,
+          Size: formData.Size,
+          images: formData.images,
+        })
+        .eq('product_id', editingProduct.product_id);
+
+      if (error) {
+        console.error('Error updating product:', error);
+        alert('Error updating product: ' + error.message);
+        return;
+      }
+
+      // Refresh products list
+      const { data, error: fetchError } = await supabase
+        .from('Products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('Error refreshing products:', fetchError);
+      } else {
+        setProducts(data || []);
+      }
+
+      // Reset form
+      setFormData({
+        product_name: '',
+        description: '',
+        short_description: '',
+        price: 0,
+        is_sale: false,
+        sales_price: 0,
+        stock_quantity: 0,
+        is_in_stock: true,
+        low_stock_threshold: 5,
+        Size: '',
+        images: [],
+      });
+      setEditingProduct(null);
+      setIsEditFormOpen(false);
+
+      alert('Product updated successfully!');
+    } catch (error) {
+      console.error('Unexpected error updating product:', error);
+      alert('An unexpected error occurred while updating the product');
+    }
   };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-      name: product.name,
+      product_name: product.product_name || product.name || '',
       description: product.description,
+      short_description: product.short_description || '',
       price: product.price,
-      category: product.category,
-      size: product.size,
-      color: product.color,
-      imageUrl: product.imageUrl,
-      stock: product.stock,
-      available: product.available,
+      is_sale: product.is_sale || false,
+      sales_price: product.sales_price || 0,
+      stock_quantity: product.stock_quantity || product.stock || 0,
+      is_in_stock: product.is_in_stock || product.available || true,
+      low_stock_threshold: product.low_stock_threshold || 5,
+      Size: product.Size || product.size?.join(', ') || '',
+      images: product.images || (product.imageUrl ? [product.imageUrl] : []) || [],
     });
     setIsEditFormOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(product => product.id !== id));
+      try {
+        const { error } = await supabase
+          .from('Products')
+          .delete()
+          .eq('product_id', parseInt(id));
+
+        if (error) {
+          console.error('Error deleting product:', error);
+          alert('Error deleting product: ' + error.message);
+          return;
+        }
+
+        // Refresh products list
+        const { data, error: fetchError } = await supabase
+          .from('Products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          console.error('Error refreshing products:', fetchError);
+        } else {
+          setProducts(data || []);
+        }
+
+        alert('Product deleted successfully!');
+      } catch (error) {
+        console.error('Unexpected error deleting product:', error);
+        alert('An unexpected error occurred while deleting the product');
+      }
     }
   };
 
   const handleCancel = () => {
     setFormData({
-      name: '',
+      product_name: '',
       description: '',
+      short_description: '',
       price: 0,
-      category: '',
-      size: [],
-      color: [],
-      imageUrl: '',
-      stock: 0,
-      available: true,
+      is_sale: false,
+      sales_price: 0,
+      stock_quantity: 0,
+      is_in_stock: true,
+      low_stock_threshold: 5,
+      Size: '',
+      images: [],
     });
     setEditingProduct(null);
     setIsEditFormOpen(false);
   };
 
   return (
-    <div className="admin-dashboard">
-      <div className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <Link to="/admin/add-product" className="btn btn-primary">
+    <div className="max-w-7xl mx-auto p-8 min-h-screen bg-gray-100">
+      <div className="flex justify-between items-center mb-6 p-6 bg-white rounded-lg shadow-md">
+        <h1 className="m-0 text-3xl text-gray-800">Admin Dashboard</h1>
+        <Link to="/admin/add-product" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-blue-500 hover:-translate-y-0.5 hover:shadow-lg">
           + Add New Product
         </Link>
       </div>
 
       {isEditFormOpen && editingProduct && (
-        <div className="form-overlay">
-          <div className="form-container">
-            <h2>Edit Product</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-8 z-50">
+          <div className="bg-white rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <h2 className="mt-0 mb-6 text-gray-800 text-2xl">Edit Product</h2>
             <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label htmlFor="name">Product Name *</label>
+              <div className="mb-5">
+                <label htmlFor="product_name" className="block mb-2 font-semibold text-gray-700 text-sm">Product Name *</label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="product_name"
+                  name="product_name"
+                  value={formData.product_name}
                   onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   required
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="description">Description *</label>
+              <div className="mb-5">
+                <label htmlFor="description" className="block mb-2 font-semibold text-gray-700 text-sm">Description *</label>
                 <textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
                   rows={4}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   required
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="price">Price ($) *</label>
+              <div className="mb-5">
+                <label htmlFor="short_description" className="block mb-2 font-semibold text-gray-700 text-sm">Short Description</label>
+                <textarea
+                  id="short_description"
+                  name="short_description"
+                  value={formData.short_description}
+                  onChange={handleInputChange}
+                  rows={2}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                  <label htmlFor="price" className="block mb-2 font-semibold text-gray-700 text-sm">Price ($) *</label>
                   <input
                     type="number"
                     id="price"
@@ -241,100 +317,117 @@ const AdminDashboard = () => {
                     onChange={handleInputChange}
                     min="0"
                     step="0.01"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     required
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="stock">Stock *</label>
+                <div>
+                  <label htmlFor="stock_quantity" className="block mb-2 font-semibold text-gray-700 text-sm">Stock Quantity *</label>
                   <input
                     type="number"
-                    id="stock"
-                    name="stock"
-                    value={formData.stock}
+                    id="stock_quantity"
+                    name="stock_quantity"
+                    value={formData.stock_quantity}
                     onChange={handleInputChange}
                     min="0"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     required
                   />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="category">Category *</label>
-                <select
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select a category</option>
-                  <option value="T-Shirts">T-Shirts</option>
-                  <option value="Pants">Pants</option>
-                  <option value="Dresses">Dresses</option>
-                  <option value="Jackets">Jackets</option>
-                  <option value="Shoes">Shoes</option>
-                  <option value="Accessories">Accessories</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="size">Sizes (comma-separated) *</label>
-                <input
-                  type="text"
-                  id="size"
-                  name="size"
-                  value={formData.size.join(', ')}
-                  onChange={(e) => handleArrayInputChange('size', e.target.value)}
-                  placeholder="e.g., S, M, L, XL"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="color">Colors (comma-separated) *</label>
-                <input
-                  type="text"
-                  id="color"
-                  name="color"
-                  value={formData.color.join(', ')}
-                  onChange={(e) => handleArrayInputChange('color', e.target.value)}
-                  placeholder="e.g., Red, Blue, Black"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="imageUrl">Image URL *</label>
-                <input
-                  type="url"
-                  id="imageUrl"
-                  name="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={handleInputChange}
-                  placeholder="https://example.com/image.jpg"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                  <label htmlFor="is_sale" className="block mb-2 font-semibold text-gray-700 text-sm">On Sale</label>
                   <input
                     type="checkbox"
-                    id="available"
-                    name="available"
-                    checked={formData.available}
+                    id="is_sale"
+                    name="is_sale"
+                    checked={formData.is_sale}
                     onChange={handleInputChange}
+                    className="w-4 h-4 cursor-pointer"
                   />
-                  <span>Product is available</span>
-                </label>
+                </div>
+
+                <div>
+                  <label htmlFor="sales_price" className="block mb-2 font-semibold text-gray-700 text-sm">Sale Price ($)</label>
+                  <input
+                    type="number"
+                    id="sales_price"
+                    name="sales_price"
+                    value={formData.sales_price}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               </div>
 
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary">
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                  <label htmlFor="is_in_stock" className="block mb-2 font-semibold text-gray-700 text-sm">In Stock</label>
+                  <input
+                    type="checkbox"
+                    id="is_in_stock"
+                    name="is_in_stock"
+                    checked={formData.is_in_stock}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="low_stock_threshold" className="block mb-2 font-semibold text-gray-700 text-sm">Low Stock Threshold</label>
+                  <input
+                    type="number"
+                    id="low_stock_threshold"
+                    name="low_stock_threshold"
+                    value={formData.low_stock_threshold}
+                    onChange={handleInputChange}
+                    min="0"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-5">
+                <label htmlFor="Size" className="block mb-2 font-semibold text-gray-700 text-sm">Size *</label>
+                <input
+                  type="text"
+                  id="Size"
+                  name="Size"
+                  value={formData.Size}
+                  onChange={handleInputChange}
+                  placeholder="e.g., S, M, L, XL"
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  required
+                />
+              </div>
+
+              <div className="mb-5">
+                <label htmlFor="images" className="block mb-2 font-semibold text-gray-700 text-sm">Image URLs (comma-separated) *</label>
+                <input
+                  type="text"
+                  id="images"
+                  name="images"
+                  value={formData.images.join(', ')}
+                  onChange={(e) => {
+                    const urls = e.target.value.split(',').map(url => url.trim()).filter(url => url);
+                    setFormData(prev => ({ ...prev, images: urls }));
+                  }}
+                  placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-4 mt-8 justify-end">
+                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-blue-500 hover:-translate-y-0.5 hover:shadow-lg">
                   Update Product
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+                <button type="button" className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-gray-500" onClick={handleCancel}>
                   Cancel
                 </button>
               </div>
@@ -343,45 +436,45 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      <div className="products-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.length === 0 ? (
-          <div className="empty-state">
-            <p>No products yet. Click "Add New Product" to get started!</p>
+          <div className="col-span-full text-center py-16 bg-white rounded-xl shadow-md">
+            <p className="text-xl text-gray-600">No products yet. Click "Add New Product" to get started!</p>
           </div>
         ) : (
           products.map(product => (
-            <div key={product.id} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
-              <div className="product-image">
-                <img src={product.imageUrl} alt={product.name} />
-                {!product.available && <div className="unavailable-badge">Unavailable</div>}
+            <div key={product.product_id.toString()} className={`bg-white rounded-xl overflow-hidden shadow-md transition-transform hover:scale-105 ${!product.is_in_stock ? 'border-2 border-red-500 opacity-75' : ''}`}>
+              <div className="relative w-full h-64 bg-gray-100 overflow-hidden">
+                <img src={product.images?.[0] || product.imageUrl || ''} alt={product.product_name || product.name || ''} className="w-full h-full object-cover" />
+                {!product.is_in_stock && <div className="absolute top-3 right-3 bg-red-600 text-white px-3 py-1 rounded-lg font-semibold text-sm">Unavailable</div>}
               </div>
-              <div className="product-info">
-                <h3>{product.name}</h3>
-                <p className="product-category">{product.category}</p>
-                <p className="product-description">{product.description}</p>
-                <div className="product-details">
-                  <span className="product-price">${(Number(product.price) || 0).toFixed(2)}</span>
-                  <span className="product-stock">Stock: {Number(product.stock) || 0}</span>
+              <div className="p-5">
+                <h3 className="text-xl font-bold text-gray-800 mb-1">{product.product_name || product.name || ''}</h3>
+                <p className="text-blue-600 font-semibold text-sm uppercase mb-3">{product.category || ''}</p>
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
+                <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg">
+                  <span className="text-2xl font-bold text-green-600">${(Number(product.price) || 0).toFixed(2)}</span>
+                  <span className="text-sm text-gray-600 font-semibold">Stock: {Number(product.stock_quantity) || Number(product.stock) || 0}</span>
                 </div>
-                <div className="product-availability">
-                  <span className={`availability-badge ${product.available ? 'available' : 'unavailable'}`}>
-                    {product.available ? 'Available' : 'Unavailable'}
+                <div className="mb-4">
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${product.is_in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {product.is_in_stock ? 'Available' : 'Unavailable'}
                   </span>
                 </div>
-                <div className="product-tags">
-                  <span className="tag">Sizes: {product.size.join(', ')}</span>
-                  <span className="tag">Colors: {product.color.join(', ')}</span>
+                <div className="flex flex-col gap-2 mb-4">
+                  <span className="inline-block px-3 py-1 bg-gray-200 rounded-md text-sm text-gray-700">Sizes: {Array.isArray(product.size) ? product.size.join(', ') : (product.size || product.Size || '')}</span>
+                  <span className="inline-block px-3 py-1 bg-gray-200 rounded-md text-sm text-gray-700">Colors: {Array.isArray(product.color) ? product.color.join(', ') : (product.color || '')}</span>
                 </div>
-                <div className="product-actions">
+                <div className="flex gap-3">
                   <button
-                    className="btn btn-edit"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold transition-all hover:bg-green-500 hover:-translate-y-0.5 hover:shadow-lg"
                     onClick={() => handleEdit(product)}
                   >
                     Edit
                   </button>
                   <button
-                    className="btn btn-delete"
-                    onClick={() => handleDelete(product.id)}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold transition-all hover:bg-red-500"
+                    onClick={() => handleDelete(product.product_id.toString())}
                   >
                     Delete
                   </button>
