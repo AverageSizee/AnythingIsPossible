@@ -38,12 +38,6 @@ function App() {
 
   return (
     <BrowserRouter>
-      {session && (
-        <div style={{ padding: '10px', textAlign: 'right' }}>
-          <p>Logged in as: {session.user.email}</p>
-          <button onClick={handleLogout}>Log Out</button>
-        </div>
-      )}
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/admin/dashboard" element={session ? <AdminDashboard /> : <AuthPage />} />

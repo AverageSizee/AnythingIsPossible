@@ -12,6 +12,7 @@ export interface Product {
   low_stock_threshold?: number;
   Size: string;
   images?: string[]; // Array of Cloudinary URLs for images/videos
+  colors?: string; // String of color data in format {color_data{color_code:...,color_name:...}},...
   // Legacy fields for backward compatibility
   id?: string;
   name?: string;

@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { Product } from '../types/Product';
 import { uploadToCloudinary } from '../services/CloudinaryService';
+import AdminNavbar from '../Component/AdminNavbar';
 
 const AddProduct = () => {
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [formData, setFormData] = useState<{
     product_name: string;
     description: string;
@@ -18,6 +20,7 @@ const AddProduct = () => {
     low_stock_threshold?: number;
     Size: string;
     images: string[];
+    colors: string;
   }>({
     product_name: '',
     description: '',
@@ -30,10 +33,27 @@ const AddProduct = () => {
     low_stock_threshold: 5,
     Size: '',
     images: [],
+    colors: '',
   });
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [newColor, setNewColor] = useState({ color_code: '#000000', color_name: '' });
+
+  const parseColorsString = (colorsString: string): {color_code: string, color_name: string}[] => {
+    if (!colorsString) return [];
+    return colorsString.split('},{color_data{').map((color, i) => {
+      if (i === 0) return color.replace('{color_data{', '');
+      if (i === colorsString.split('},{color_data{').length - 1) return color.replace('}}', '');
+      return color;
+    }).map(color => {
+      const [color_code, color_name] = color.split(',');
+      return {
+        color_code: color_code.split(':')[1],
+        color_name: color_name.split(':')[1],
+      };
+    });
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -70,6 +90,47 @@ const AddProduct = () => {
         [name]: value,
       }));
     }
+  };
+
+  const handleNewColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewColor(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const addColor = () => {
+    if (!newColor.color_name.trim()) {
+      alert('Please enter a color name');
+      return;
+    }
+    const colorString = `{color_data{color_code:${newColor.color_code},color_name:${newColor.color_name}}}`;
+    setFormData(prev => ({
+      ...prev,
+      colors: prev.colors ? `${prev.colors},${colorString}` : colorString,
+    }));
+    setNewColor({ color_code: '#000000', color_name: '' });
+  };
+
+  const removeColor = (index: number) => {
+    const colorsArray = formData.colors ? formData.colors.split('},{color_data{').map((color, i) => {
+      if (i === 0) return color.replace('{color_data{', '');
+      if (i === formData.colors.split('},{color_data{').length - 1) return color.replace('}}', '');
+      return color;
+    }).map(color => {
+      const [color_code, color_name] = color.split(',');
+      return {
+        color_code: color_code.split(':')[1],
+        color_name: color_name.split(':')[1],
+      };
+    }) : [];
+    colorsArray.splice(index, 1);
+    const newColorsString = colorsArray.map(color => `{color_data{color_code:${color.color_code},color_name:${color.color_name}}}`).join(',');
+    setFormData(prev => ({
+      ...prev,
+      colors: newColorsString,
+     }));
   };
 
 
@@ -115,13 +176,16 @@ const AddProduct = () => {
         images: imageUrls,
       }));
 
+      console.log('Form data before insert:', formData);
+      console.log('Image URLs:', imageUrls);
+
       const { data, error } = await supabase
         .from('Products')
         .insert([
           {
             product_name: formData.product_name,
             description: formData.description,
-            short_descriptiontion: formData.short_description,
+            short_description: formData.short_description,
             price: formData.price,
             is_sale: formData.is_sale,
             sales_price: formData.sales_price,
@@ -130,6 +194,7 @@ const AddProduct = () => {
             low_stock_threshold: formData.low_stock_threshold,
             Size: formData.Size,
             images: imageUrls,
+            colors: formData.colors,
           }
         ])
         .select();
@@ -153,6 +218,7 @@ const AddProduct = () => {
         low_stock_threshold: 5,
         Size: '',
         images: [],
+        colors: '',
       });
       setSelectedFiles([]);
 
@@ -167,7 +233,9 @@ const AddProduct = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-8 min-h-screen bg-gray-100">
+    <>
+      <AdminNavbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      <div className={`max-w-7xl mx-auto p-8 min-h-screen bg-gray-100 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
       <div className="flex justify-between items-center mb-6 p-6 bg-white rounded-lg shadow-md">
         <h1 className="m-0 text-3xl text-gray-800">Add New Product</h1>
         <Link to="/admin/dashboard" className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-gray-500">
@@ -313,6 +381,67 @@ const AddProduct = () => {
             )}
           </div>
 
+          <div className="mb-5">
+            <label className="block mb-2 font-semibold text-gray-700 text-sm">Colors</label>
+            <div className="space-y-3">
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label htmlFor="color_name" className="block mb-1 text-sm font-medium text-gray-600">Color Name</label>
+                  <input
+                    type="text"
+                    id="color_name"
+                    name="color_name"
+                    value={newColor.color_name}
+                    onChange={handleNewColorChange}
+                    placeholder="e.g., Red, Blue"
+                    className="w-full p-2 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="color_code" className="block mb-1 text-sm font-medium text-gray-600">Color</label>
+                  <input
+                    type="color"
+                    id="color_code"
+                    name="color_code"
+                    value={newColor.color_code}
+                    onChange={handleNewColorChange}
+                    className="w-16 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addColor}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-green-500"
+                >
+                  Add Color
+                </button>
+              </div>
+              {parseColorsString(formData.colors).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-700">Added Colors:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {parseColorsString(formData.colors).map((color, index) => (
+                      <div key={index} className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-lg">
+                        <div
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: color.color_code }}
+                        ></div>
+                        <span className="text-sm text-gray-700">{color.color_name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeColor(index)}
+                          className="text-red-500 hover:text-red-700 text-sm font-bold"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div>
               <label className="flex items-center space-x-2">
@@ -354,6 +483,7 @@ const AddProduct = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };
 
