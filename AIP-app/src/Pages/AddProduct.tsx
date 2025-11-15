@@ -1,26 +1,54 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 import type { Product } from '../types/Product';
+import { uploadToCloudinary } from '../services/CloudinaryService';
 import './AddProduct.css';
 
 const AddProduct = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>({
-    name: '',
+  const [formData, setFormData] = useState<{
+    product_name: string;
+    description: string;
+    short_descrip?: string;
+    price: number;
+    is_sale?: boolean;
+    sales_price?: number;
+    stock_quantit: number;
+    is_in_stock: boolean;
+    low_stock_thr?: number;
+    Size: string;
+    images: string[];
+  }>({
+    product_name: '',
     description: '',
+    short_descrip: '',
     price: 0,
-    category: '',
-    size: [],
-    color: [],
-    imageUrl: '',
-    stock: 0,
-    available: true,
+    is_sale: false,
+    sales_price: 0,
+    stock_quantit: 0,
+    is_in_stock: true,
+    low_stock_thr: 5,
+    Size: '',
+    images: [],
   });
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const input = e.target as HTMLInputElement;
-    
+
+    // Handle file input
+    if (type === 'file') {
+      const files = input.files;
+      if (files) {
+        setSelectedFiles(Array.from(files));
+      }
+      return;
+    }
+
     // Handle checkbox
     if (type === 'checkbox') {
       setFormData(prev => ({
@@ -29,7 +57,7 @@ const AddProduct = () => {
       }));
       return;
     }
-    
+
     // Convert number inputs to actual numbers
     if (type === 'number') {
       const numValue = input.value === '' ? 0 : parseFloat(input.value);
@@ -45,18 +73,13 @@ const AddProduct = () => {
     }
   };
 
-  const handleArrayInputChange = (field: 'size' | 'color', value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value.split(',').map(item => item.trim()).filter(item => item),
-    }));
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
-    if (!formData.name.trim()) {
+    if (!formData.product_name.trim()) {
       alert('Please enter a product name');
       return;
     }
@@ -68,65 +91,80 @@ const AddProduct = () => {
       alert('Please enter a valid price greater than 0');
       return;
     }
-    if (formData.stock < 0) {
+    if (formData.stock_quantit < 0) {
       alert('Stock cannot be negative');
       return;
     }
-    if (!formData.category) {
-      alert('Please select a category');
-      return;
-    }
-    if (formData.size.length === 0) {
+    if (!formData.Size.trim()) {
       alert('Please enter at least one size');
       return;
     }
-    if (formData.color.length === 0) {
-      alert('Please enter at least one color');
-      return;
+
+    setUploading(true);
+
+    try {
+      // Upload images to Cloudinary
+      const imageUrls: string[] = [];
+      for (const file of selectedFiles) {
+        const url = await uploadToCloudinary(file);
+        imageUrls.push(url);
+      }
+
+      // Update formData with image URLs
+      setFormData(prev => ({
+        ...prev,
+        images: imageUrls,
+      }));
+
+      const { data, error } = await supabase
+        .from('Products')
+        .insert([
+          {
+            product_name: formData.product_name,
+            description: formData.description,
+            short_description: formData.short_descrip,
+            price: formData.price,
+            is_sale: formData.is_sale,
+            sales_price: formData.sales_price,
+            stock_quantity: formData.stock_quantit,
+            is_in_stock: formData.is_in_stock,
+            low_stock_threshold: formData.low_stock_thr,
+            Size: formData.Size,
+            images: imageUrls,
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Error adding product:', error);
+        alert('Error adding product: ' + error.message);
+        return;
+      }
+
+      // Reset form and navigate to dashboard
+      setFormData({
+        product_name: '',
+        description: '',
+        short_descrip: '',
+        price: 0,
+        is_sale: false,
+        sales_price: 0,
+        stock_quantit: 0,
+        is_in_stock: true,
+        low_stock_thr: 5,
+        Size: '',
+        images: [],
+      });
+      setSelectedFiles([]);
+
+      alert('Product added successfully!');
+      navigate('/admin/dashboard');
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      alert('An unexpected error occurred while adding the product');
+    } finally {
+      setUploading(false);
     }
-    if (!formData.imageUrl.trim()) {
-      alert('Please enter an image URL');
-      return;
-    }
-    
-    // Ensure price and stock are numbers
-    const normalizedFormData = {
-      ...formData,
-      price: typeof formData.price === 'string' ? parseFloat(formData.price) || 0 : Number(formData.price) || 0,
-      stock: typeof formData.stock === 'string' ? parseInt(String(formData.stock), 10) || 0 : Number(formData.stock) || 0,
-    };
-    
-    // Get existing products from sessionStorage
-    const savedProducts = sessionStorage.getItem('products');
-    const existingProducts: Product[] = savedProducts ? JSON.parse(savedProducts) : [];
-    
-    // Create new product
-    const newProduct: Product = {
-      ...normalizedFormData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    // Add to products array and save
-    const updatedProducts = [...existingProducts, newProduct];
-    sessionStorage.setItem('products', JSON.stringify(updatedProducts));
-    
-    // Reset form and navigate to dashboard
-    setFormData({
-      name: '',
-      description: '',
-      price: 0,
-      category: '',
-      size: [],
-      color: [],
-      imageUrl: '',
-      stock: 0,
-      available: true,
-    });
-    
-    alert('Product added successfully!');
-    navigate('/admin/dashboard');
   };
 
   return (
@@ -141,12 +179,12 @@ const AddProduct = () => {
       <div className="form-wrapper">
         <form onSubmit={handleSubmit} className="product-form">
           <div className="form-group">
-            <label htmlFor="name">Product Name *</label>
+            <label htmlFor="product_name">Product Name *</label>
             <input
               type="text"
-              id="name"
-              name="name"
-              value={formData.name}
+              id="product_name"
+              name="product_name"
+              value={formData.product_name}
               onChange={handleInputChange}
               required
             />
@@ -161,6 +199,18 @@ const AddProduct = () => {
               onChange={handleInputChange}
               rows={4}
               required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="short_descrip">Short Description</label>
+            <input
+              type="text"
+              id="short_descrip"
+              name="short_descrip"
+              value={formData.short_descrip}
+              onChange={handleInputChange}
+              placeholder="Brief description for listings"
             />
           </div>
 
@@ -180,12 +230,12 @@ const AddProduct = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="stock">Stock *</label>
+              <label htmlFor="stock_quantit">Stock Quantity *</label>
               <input
                 type="number"
-                id="stock"
-                name="stock"
-                value={formData.stock}
+                id="stock_quantit"
+                name="stock_quantit"
+                value={formData.stock_quantit}
                 onChange={handleInputChange}
                 min="0"
                 required
@@ -193,80 +243,99 @@ const AddProduct = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="category">Category *</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select a category</option>
-              <option value="T-Shirts">T-Shirts</option>
-              <option value="Pants">Pants</option>
-              <option value="Dresses">Dresses</option>
-              <option value="Jackets">Jackets</option>
-              <option value="Shoes">Shoes</option>
-              <option value="Accessories">Accessories</option>
-            </select>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="sales_price">Sale Price ($)</label>
+              <input
+                type="number"
+                id="sales_price"
+                name="sales_price"
+                value={formData.sales_price}
+                onChange={handleInputChange}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="low_stock_thr">Low Stock Threshold</label>
+              <input
+                type="number"
+                id="low_stock_thr"
+                name="low_stock_thr"
+                value={formData.low_stock_thr}
+                onChange={handleInputChange}
+                min="0"
+              />
+            </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="size">Sizes (comma-separated) *</label>
+            <label htmlFor="Size">Size *</label>
             <input
               type="text"
-              id="size"
-              name="size"
-              value={formData.size.join(', ')}
-              onChange={(e) => handleArrayInputChange('size', e.target.value)}
+              id="Size"
+              name="Size"
+              value={formData.Size}
+              onChange={handleInputChange}
               placeholder="e.g., S, M, L, XL"
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="color">Colors (comma-separated) *</label>
+            <label htmlFor="images">Images/Videos</label>
             <input
-              type="text"
-              id="color"
-              name="color"
-              value={formData.color.join(', ')}
-              onChange={(e) => handleArrayInputChange('color', e.target.value)}
-              placeholder="e.g., Red, Blue, Black"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="imageUrl">Image URL *</label>
-            <input
-              type="url"
-              id="imageUrl"
-              name="imageUrl"
-              value={formData.imageUrl}
+              type="file"
+              id="images"
+              name="images"
+              multiple
+              accept="image/*,video/*"
               onChange={handleInputChange}
-              placeholder="https://example.com/image.jpg"
-              required
             />
+            {selectedFiles.length > 0 && (
+              <div className="selected-files">
+                <p>Selected files: {selectedFiles.length}</p>
+                <ul>
+                  {selectedFiles.map((file, index) => (
+                    <li key={index}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                id="available"
-                name="available"
-                checked={formData.available}
-                onChange={handleInputChange}
-              />
-              <span>Product is available</span>
-            </label>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  id="is_sale"
+                  name="is_sale"
+                  checked={formData.is_sale}
+                  onChange={handleInputChange}
+                />
+                <span>On Sale</span>
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  id="is_in_stock"
+                  name="is_in_stock"
+                  checked={formData.is_in_stock}
+                  onChange={handleInputChange}
+                />
+                <span>In Stock</span>
+              </label>
+            </div>
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
-              Create Product
+            <button type="submit" className="btn btn-primary" disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Create Product'}
             </button>
             <Link to="/admin/dashboard" className="btn btn-secondary">
               Cancel
