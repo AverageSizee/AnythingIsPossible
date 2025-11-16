@@ -5,6 +5,7 @@ import AuthPage from './AuthPage'
 import HomePage from './Pages/HomePage'
 import AdminDashboard from './Pages/AdminDashboard'
 import AddProduct from './Pages/AddProduct'
+import HPSettings from './Pages/AdminHPSettings'
 import './App.css'
 import type { Session } from '@supabase/supabase-js'
 
@@ -42,6 +43,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/admin/dashboard" element={session ? <AdminDashboard /> : <AuthPage />} />
         <Route path="/admin/add-product" element={session ? <AddProduct /> : <AuthPage />} />
+        <Route path="/admin/hp-settings" element={session ? <HPSettings /> : <AuthPage />} />
       </Routes>
     </BrowserRouter>
   )
