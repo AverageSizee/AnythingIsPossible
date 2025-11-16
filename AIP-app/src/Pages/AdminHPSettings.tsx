@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 import AdminNavbar from '../Component/AdminNavbar';
 import { supabase } from '../supabaseClient';
 import { uploadToCloudinary } from '../services/CloudinaryService';
+import type { Product } from '../types/Product';
 
 interface Slide {
   id: number;
@@ -10,26 +11,86 @@ interface Slide {
   label: string;
 }
 
+interface Widget {
+  id: number;
+  widget_name: string;
+  products: Product[];
+}
+
 const HPSettings = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState<Slide[]>([]);
+  const [widgets, setWidgets] = useState<Widget[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSlide, setEditingSlide] = useState<Slide | null>(null);
   const [formData, setFormData] = useState({ image: '', label: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [editingWidget, setEditingWidget] = useState<Widget | null>(null);
+  const [widgetFormData, setWidgetFormData] = useState({ widget_name: '' });
+  const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<number | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+
+  const getFirstImageUrl = (images: string[]): string => {
+    for (const url of images) {
+      const extension = url.split('.').pop()?.toLowerCase();
+      if (extension && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+        return url;
+      }
+    }
+    return '';
+  };
 
   useEffect(() => {
     const fetchSlides = async () => {
       const { data, error } = await supabase.from('Slides').select('*');
       if (error) {
         console.error('Error fetching slides:', error);
+        alert('Error fetching slides: ' + error.message);
       } else {
         setSlides(data || []);
       }
     };
+
+    const fetchWidgets = async () => {
+      const { data, error } = await supabase
+        .from('Widgets')
+        .select(`
+          id,
+          widget_name,
+          Products_Widgets!left(
+            Products!inner(*)
+          )
+        `);
+      if (error) {
+        console.error('Error fetching widgets:', error);
+        alert('Error fetching widgets: ' + error.message);
+      } else {
+        const widgetsWithProducts = data?.map(widget => ({
+          id: widget.id,
+          widget_name: widget.widget_name,
+          products: widget.Products_Widgets ? widget.Products_Widgets.map((pw: any) => pw.Products).flat() : []
+        })) || [];
+        setWidgets(widgetsWithProducts);
+      }
+    };
+
+    const fetchAllProducts = async () => {
+      const { data, error } = await supabase.from('Products').select('*');
+      if (error) {
+        console.error('Error fetching products:', error);
+      } else {
+        setAllProducts(data || []);
+      }
+    };
+
     fetchSlides();
+    fetchWidgets();
+    fetchAllProducts();
   }, []);
 
   const nextSlide = () => {
@@ -134,6 +195,142 @@ const HPSettings = () => {
     }
   };
 
+  const handleAddWidget = () => {
+    setEditingWidget(null);
+    setWidgetFormData({ widget_name: '' });
+    setIsWidgetModalOpen(true);
+  };
+
+  const handleEditWidget = (widget: Widget) => {
+    setEditingWidget(widget);
+    setWidgetFormData({ widget_name: widget.widget_name });
+    setIsWidgetModalOpen(true);
+  };
+
+  const handleDeleteWidget = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this widget?')) {
+      const { error } = await supabase.from('Widgets').delete().eq('id', id);
+      if (error) {
+        console.error('Error deleting widget:', error);
+        alert('Error deleting widget: ' + error.message);
+      } else {
+        setWidgets(widgets.filter(widget => widget.id !== id));
+      }
+    }
+  };
+
+  const handleSaveWidget = async () => {
+    if (!widgetFormData.widget_name.trim()) {
+      alert('Please fill in the widget name');
+      return;
+    }
+
+    if (editingWidget) {
+      // Update
+      const { error } = await supabase
+        .from('Widgets')
+        .update({ widget_name: widgetFormData.widget_name })
+        .eq('id', editingWidget.id);
+      if (error) {
+        console.error('Error updating widget:', error);
+        alert('Error updating widget: ' + error.message);
+      } else {
+        setWidgets(widgets.map(widget =>
+          widget.id === editingWidget.id ? { ...widget, widget_name: widgetFormData.widget_name } : widget
+        ));
+      }
+    } else {
+      // Add
+      const { data, error } = await supabase
+        .from('Widgets')
+        .insert([{ widget_name: widgetFormData.widget_name }])
+        .select();
+      if (error) {
+        console.error('Error adding widget:', error);
+        alert('Error adding widget: ' + error.message);
+      } else {
+        setWidgets([...widgets, { id: data[0].id, widget_name: data[0].widget_name, products: [] }]);
+      }
+    }
+
+    setIsWidgetModalOpen(false);
+    setEditingWidget(null);
+    setWidgetFormData({ widget_name: '' });
+  };
+
+  const handleAddProductToWidget = (widgetId: number) => {
+    setSelectedWidgetId(widgetId);
+    setSelectedProducts([]);
+    setIsAddProductModalOpen(true);
+  };
+
+  const handleSaveProductsToWidget = async () => {
+    if (!selectedWidgetId || selectedProducts.length === 0) {
+      alert('Please select at least one product');
+      return;
+    }
+
+    const inserts = selectedProducts.map(product => ({
+      widget_id: selectedWidgetId,
+      product_id: product.product_id
+    }));
+
+    const { error } = await supabase.from('Products_Widgets').insert(inserts);
+    if (error) {
+      console.error('Error adding products to widget:', error);
+      alert('Error adding products to widget: ' + error.message);
+    } else {
+      // Refresh widgets
+      const { data, error: fetchError } = await supabase
+        .from('Widgets')
+        .select(`
+          id,
+          widget_name,
+          Products_Widgets!left(
+            Products!inner(*)
+          )
+        `);
+      if (fetchError) {
+        console.error('Error fetching widgets:', fetchError);
+      } else {
+        const widgetsWithProducts = data?.map(widget => ({
+          id: widget.id,
+          widget_name: widget.widget_name,
+          products: widget.Products_Widgets ? widget.Products_Widgets.map((pw: any) => pw.Products).flat() : []
+        })) || [];
+        setWidgets(widgetsWithProducts);
+      }
+      setIsAddProductModalOpen(false);
+      setSelectedWidgetId(null);
+      setSelectedProducts([]);
+    }
+  };
+
+  const handleRemoveProductFromWidget = async (widgetId: number, productId: number) => {
+    const { error } = await supabase
+      .from('Products_Widgets')
+      .delete()
+      .eq('widget_id', widgetId)
+      .eq('product_id', productId);
+    if (error) {
+      console.error('Error removing product from widget:', error);
+      alert('Error removing product from widget: ' + error.message);
+    } else {
+      setWidgets(widgets.map(widget =>
+        widget.id === widgetId
+          ? { ...widget, products: widget.products.filter(p => p.product_id !== productId) }
+          : widget
+      ));
+    }
+  };
+
+  const getAvailableProducts = () => {
+    const currentWidget = widgets.find(w => w.id === selectedWidgetId);
+    return allProducts.filter(product =>
+      !currentWidget?.products.some(p => p.product_id === product.product_id)
+    );
+  };
+
   return (
     <>
       <AdminNavbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
@@ -218,6 +415,67 @@ const HPSettings = () => {
               ))}
             </div>
           </div>
+
+          {/* Widgets Management */}
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Manage Widgets</h3>
+            <button
+              onClick={handleAddWidget}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-500 transition mb-4"
+            >
+              Add New Widget
+            </button>
+            {widgets.map((widget) => (
+              <div key={widget.id} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-lg font-medium text-gray-700">{widget.widget_name}</h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditWidget(widget)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteWidget(widget.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-500 transition"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => handleAddProductToWidget(widget.id)}
+                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-500 transition"
+                    >
+                      Add Products
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {widget.products.map((product) => (
+                    <div key={product.product_id} className="group relative">
+                      <div className="bg-neutral-900 overflow-hidden mb-2 aspect-square rounded">
+                        <img
+                          src={getFirstImageUrl(product.images || []) || "/placeholder.svg"}
+                          alt={product.product_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                      </div>
+                      <h5 className="text-sm font-medium mb-1 truncate">
+                        {product.product_name}
+                      </h5>
+                      <p className="text-neutral-400 text-sm">₱{product.price.toFixed(2)} PHP</p>
+                      <button
+                        onClick={() => handleRemoveProductFromWidget(widget.id, product.product_id)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700 transition"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -279,6 +537,95 @@ const HPSettings = () => {
               </button>
               <button
                 onClick={() => setIsEditModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Widget Modal */}
+      {isWidgetModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">{editingWidget ? 'Edit Widget' : 'Add New Widget'}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block mb-1 font-semibold">Widget Name</label>
+                <input
+                  type="text"
+                  value={widgetFormData.widget_name}
+                  onChange={(e) => setWidgetFormData({ widget_name: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  placeholder="Enter widget name"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleSaveWidget}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setIsWidgetModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {isAddProductModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-4">Add Products to Widget</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {getAvailableProducts().map((product) => (
+                <div
+                  key={product.product_id}
+                  className={`group cursor-pointer border-2 rounded-lg p-2 ${
+                    selectedProducts.some(p => p.product_id === product.product_id)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300'
+                  }`}
+                  onClick={() => {
+                    if (selectedProducts.some(p => p.product_id === product.product_id)) {
+                      setSelectedProducts(selectedProducts.filter(p => p.product_id !== product.product_id));
+                    } else {
+                      setSelectedProducts([...selectedProducts, product]);
+                    }
+                  }}
+                >
+                  <div className="bg-neutral-900 overflow-hidden mb-2 aspect-square rounded">
+                    <img
+                      src={getFirstImageUrl(product.images || []) || "/placeholder.svg"}
+                      alt={product.product_name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                    />
+                  </div>
+                  <h5 className="text-sm font-medium mb-1 truncate">
+                    {product.product_name}
+                  </h5>
+                  <p className="text-neutral-400 text-sm">₱{product.price.toFixed(2)} PHP</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveProductsToWidget}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition"
+              >
+                Add Selected Products
+              </button>
+              <button
+                onClick={() => setIsAddProductModalOpen(false)}
                 className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
               >
                 Cancel
