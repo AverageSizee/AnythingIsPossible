@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Header } from "../Component/Header"
 import { Footer } from "../Component/Footer"
@@ -20,6 +21,7 @@ interface Widget {
 }
 
 export default function Home() {
+  const navigate = useNavigate()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [slides, setSlides] = useState<Slide[]>([])
   const [loading, setLoading] = useState(true)
@@ -185,7 +187,10 @@ export default function Home() {
 
         {/* CTA Button */}
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10">
-          <button className="bg-white text-black px-8 py-3 font-bold text-sm hover:bg-neutral-200 transition">
+          <button
+            onClick={() => navigate('/products')}
+            className="bg-white text-black px-8 py-3 font-bold text-sm hover:bg-neutral-200 transition"
+          >
             SHOP HERE
           </button>
         </div>
@@ -197,7 +202,11 @@ export default function Home() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {products.map((product) => (
-            <div key={product.product_id} className="group cursor-pointer">
+            <div
+              key={product.product_id}
+              className="group cursor-pointer"
+              onClick={() => navigate(`/product/${encodeURIComponent(product.product_name)}`)}
+            >
               <div className="bg-neutral-900 overflow-hidden mb-4 aspect-square">
                 <img
                   src={getFirstImageUrl(product.images || []) || "/placeholder.svg"}
@@ -252,7 +261,11 @@ export default function Home() {
               {/* Added horizontal margin to create space for the arrows on desktop/larger screens */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {displayedProducts.map((product) => (
-                  <div key={product.product_id} className="group cursor-pointer">
+                  <div
+                    key={product.product_id}
+                    className="group cursor-pointer"
+                    onClick={() => navigate(`/product/${encodeURIComponent(product.product_name)}`)}
+                  >
                     <div className="bg-neutral-900 overflow-hidden mb-4 aspect-square">
                       {/* Note: Image hover effect is already correct with group-hover:scale-105 */}
                       <img

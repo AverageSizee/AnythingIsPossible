@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import AuthPage from './AuthPage'
 import HomePage from './Pages/HomePage'
+import ProductDetail from './Pages/ProductDetail'
+import ProductsList from './Pages/ProductsList'
 import AdminDashboard from './Pages/AdminDashboard'
 import AddProduct from './Pages/AddProduct'
 import HPSettings from './Pages/AdminHPSettings'
@@ -41,6 +43,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductsList />} />
+        <Route path="/product/:product_name" element={<ProductDetail />} />
         <Route path="/admin/dashboard" element={session ? <AdminDashboard /> : <AuthPage />} />
         <Route path="/admin/add-product" element={session ? <AddProduct /> : <AuthPage />} />
         <Route path="/admin/hp-settings" element={session ? <HPSettings /> : <AuthPage />} />

@@ -1,16 +1,19 @@
 import { Search, User, ShoppingCart } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 export function Header() {
+  const navigate = useNavigate()
+
   return (
     <header className="border-b border-neutral-800 sticky top-0 z-50 bg-black">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="text-2xl font-bold tracking-wider">AIP</div>
+        <div className="text-2xl font-bold tracking-wider cursor-pointer" onClick={() => navigate('/')}>AIP</div>
 
         <nav className="hidden md:flex gap-8 text-sm font-medium">
-          <a href="#" className="hover:text-neutral-400 transition">
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/') }} className="hover:text-neutral-400 transition">
             HOME
           </a>
-          <a href="#" className="hover:text-neutral-400 transition">
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/products') }} className="hover:text-neutral-400 transition">
             SHOP
           </a>
           <a href="#" className="hover:text-neutral-400 transition">
