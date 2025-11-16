@@ -91,7 +91,7 @@ export default function Home() {
             widget_name: widget.widget_name,
             products: widget.Products_Widgets ? widget.Products_Widgets.map(pw => pw.Products).flat() : []
           })) || []
-          console.log('Fetched widgets:', widgetsWithProducts)
+          // console.log('Fetched widgets:', widgetsWithProducts)
           setWidgets(widgetsWithProducts)
         }
       } catch (error) {
@@ -145,8 +145,8 @@ export default function Home() {
       <Header />
 
       {/* Hero Carousel */}
-      <section className="relative h-screen overflow-hidden bg-neutral-900">
-        <div className="relative w-full h-full">
+        <section className="relative h-[600px] md:h-[650px] overflow-hidden bg-neutral-900">
+          <div className="relative w-full h-full">
           {slides.map((slide, index) => (
             <div
               key={slide.id}

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Header } from "../Component/Header"
 import { Footer } from "../Component/Footer"
 import { supabase } from "../supabaseClient"
@@ -9,10 +9,12 @@ import type { Product } from "../types/Product"
 
 export default function ProductsList() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
@@ -31,11 +33,35 @@ export default function ProductsList() {
     return '';
   };
 
-  const fetchProducts = useCallback(async (reset = false) => {
-    if (loading || (!hasMore && !reset)) return
+  // Sync searchQuery with URL params - always sync when URL changes
+  useEffect(() => {
+    const search = searchParams.get('search') || ''
+    // console.log('URL search param changed to:', search) // Debug log
+    setSearchQuery(search)
+    setIsInitialized(true)
+  }, [searchParams.toString()])
+
+  // Update URL when typing in the search box (not from URL change)
+  useEffect(() => {
+    if (!isInitialized) return // Don't update URL until we've read it first
+    
+    const currentSearch = searchParams.get('search') || ''
+    if (searchQuery && searchQuery !== currentSearch) {
+      const timer = setTimeout(() => {
+        // console.log('Updating URL to:', searchQuery) // Debug log
+        setSearchParams({ search: searchQuery }, { replace: true })
+      }, 300)
+      return () => clearTimeout(timer)
+    } else if (!searchQuery && currentSearch) {
+      // console.log('Clearing URL search param') // Debug log
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchQuery, isInitialized])
+
+  const fetchProducts = async (reset = false, currentPage = page) => {
+    if (loading) return
 
     setLoading(true)
-    const currentPage = reset ? 0 : page
     const offset = currentPage * ITEMS_PER_PAGE
 
     let query = supabase
@@ -67,11 +93,12 @@ export default function ProductsList() {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching products:', error)
+      // console.error('Error fetching products:', error)
     } else {
       if (reset) {
         setProducts(data || [])
         setPage(1)
+        setHasMore((data || []).length === ITEMS_PER_PAGE)
       } else {
         setProducts(prev => {
           const newProducts = data || []
@@ -80,34 +107,42 @@ export default function ProductsList() {
           return [...prev, ...uniqueNewProducts]
         })
         setPage(prev => prev + 1)
+        setHasMore((data || []).length === ITEMS_PER_PAGE)
       }
-      setHasMore((data || []).length === ITEMS_PER_PAGE)
     }
 
     setLoading(false)
-  }, [loading, hasMore, page, searchQuery, minPrice, maxPrice, selectedSize, selectedColor])
+  }
 
+  // Fetch products when filters change (only after initialization)
   useEffect(() => {
-    fetchProducts(true)
-  }, [searchQuery, minPrice, maxPrice, selectedSize, selectedColor])
+    if (!isInitialized) return // Wait until we've read URL params
+    
+    // console.log('Fetching products with filters:', { searchQuery, minPrice, maxPrice, selectedSize, selectedColor }) // Debug log
+    setPage(0)
+    setHasMore(true)
+    fetchProducts(true, 0)
+  }, [searchQuery, minPrice, maxPrice, selectedSize, selectedColor, isInitialized])
 
+  // Handle infinite scroll
   useEffect(() => {
     const handleScroll = () => {
-      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 100) {
-        fetchProducts()
+      if (
+        window.innerHeight + document.documentElement.scrollTop >= 
+        document.documentElement.offsetHeight - 100 &&
+        !loading &&
+        hasMore
+      ) {
+        fetchProducts(false, page)
       }
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [fetchProducts])
+  }, [loading, hasMore, page, searchQuery, minPrice, maxPrice, selectedSize, selectedColor])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-  }
-
-  const handleFilterChange = () => {
-    // Filters are applied via useEffect
   }
 
   return (
