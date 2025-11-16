@@ -63,7 +63,7 @@ const AddProduct = () => {
     if (type === 'file') {
       const files = input.files;
       if (files) {
-        setSelectedFiles(Array.from(files));
+        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
       }
       return;
     }

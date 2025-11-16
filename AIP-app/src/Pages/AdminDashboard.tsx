@@ -37,6 +37,16 @@ const AdminDashboard = () => {
     colors: [],
   });
 
+  const getFirstImageUrl = (images: string[]): string => {
+    for (const url of images) {
+      const extension = url.split('.').pop()?.toLowerCase();
+      if (extension && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+        return url;
+      }
+    }
+    return '';
+  };
+
   const parseColorsString = (colorsString: string): {color_code: string, color_name: string}[] => {
     if (!colorsString) return [];
     return colorsString.split('},{color_data{').map((color, i) => {
@@ -438,7 +448,7 @@ const AdminDashboard = () => {
               <div className="mb-5">
                 <label className="block mb-2 font-semibold text-gray-700 text-sm">Images *</label>
                 {formData.images.map((url, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
+                  <div key={index} className="flex gap-2 mb-2 items-center">
                     <input
                       type="text"
                       value={url}
@@ -451,6 +461,16 @@ const AdminDashboard = () => {
                       className="flex-1 p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       required
                     />
+                    {url && (
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-16 h-16 object-cover border border-gray-300 rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -544,7 +564,7 @@ const AdminDashboard = () => {
           products.map(product => (
             <div key={product.product_id.toString()} className={`bg-white rounded-xl overflow-hidden shadow-md transition-transform hover:scale-105 ${!product.is_in_stock ? 'border-2 border-red-500 opacity-75' : ''}`}>
               <div className="relative w-full h-64 bg-gray-100 overflow-hidden">
-                <img src={product.images?.[0] || product.imageUrl || ''} alt={product.product_name || product.name || ''} className="w-full h-full object-cover" />
+                <img src={getFirstImageUrl(product.images || []) || product.imageUrl || ''} alt={product.product_name || product.name || ''} className="w-full h-full object-cover" />
                 {!product.is_in_stock && <div className="absolute top-3 right-3 bg-red-600 text-white px-3 py-1 rounded-lg font-semibold text-sm">Unavailable</div>}
               </div>
               <div className="p-5">

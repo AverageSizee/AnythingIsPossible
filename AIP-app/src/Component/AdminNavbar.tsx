@@ -86,7 +86,7 @@ export function AdminNavbar({ isSidebarOpen, setIsSidebarOpen }: AdminNavbarProp
             <ul className="space-y-4">
               <li>
                 <Link
-                  to="/admin"
+                  to="/admin/dashboard"
                   className="block py-2 px-4 text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
                   onClick={toggleSidebar}
                 >
@@ -100,6 +100,15 @@ export function AdminNavbar({ isSidebarOpen, setIsSidebarOpen }: AdminNavbarProp
                   onClick={toggleSidebar}
                 >
                   Add Product
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/admin/hp-settings"
+                  className="block py-2 px-4 text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
+                  onClick={toggleSidebar}
+                >
+                  HP Settings
                 </Link>
               </li>
             </ul>

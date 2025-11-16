@@ -1,3 +1,3 @@
-- Create AdminNavbar.tsx component with burger menu, sidebar, email display, and logout
-- Update AdminDashboard.tsx to include AdminNavbar
-- Test navbar functionality in browser
+- [x] Create new HPSettings.tsx page file with basic structure, AdminNavbar import, sidebar state, and placeholder settings form
+- [x] Update App.tsx to import HPSettings and add protected route /admin/hp-settings
+- [x] Update AdminNavbar.tsx to add "HP Settings" link in sidebar navigation
