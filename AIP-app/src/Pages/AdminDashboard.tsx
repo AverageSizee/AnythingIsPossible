@@ -62,9 +62,7 @@ const AdminDashboard = () => {
     });
   };
 
-  const serializeColorsArray = (colorsArray: {color_code: string, color_name: string}[]): string => {
-    return colorsArray.map(color => `{color_data{color_code:${color.color_code},color_name:${color.color_name}}}`).join(',');
-  };
+
 
   // Load products from Supabase on mount
   useEffect(() => {
@@ -119,12 +117,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleArrayInputChange = (field: 'size' | 'color', value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value.split(',').map(item => item.trim()).filter(item => item),
-    }));
-  };
+
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();

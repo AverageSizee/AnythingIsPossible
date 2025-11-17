@@ -24,7 +24,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [slides, setSlides] = useState<Slide[]>([])
-  const [loading, setLoading] = useState(true)
+
   const [products, setProducts] = useState<Product[]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
   const [widgetProductIndices, setWidgetProductIndices] = useState<{ [key: number]: number }>({})
@@ -47,7 +47,6 @@ export default function Home() {
       } else {
         setSlides(data || [])
       }
-      setLoading(false)
     }
     fetchSlides()
   }, [])
