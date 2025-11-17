@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { uploadToCloudinary } from '../services/CloudinaryService';
 import type { Product } from '../types/Product';
 import AdminNavbar from '../Component/AdminNavbar';
 
@@ -9,6 +10,8 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<{
     product_name: string;
     description: string;
@@ -92,7 +95,16 @@ const AdminDashboard = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const input = e.target as HTMLInputElement;
-    
+
+    // Handle file input
+    if (type === 'file') {
+      const files = input.files;
+      if (files) {
+        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
+      }
+      return;
+    }
+
     // Handle checkbox
     if (type === 'checkbox') {
       setFormData(prev => ({
@@ -101,7 +113,7 @@ const AdminDashboard = () => {
       }));
       return;
     }
-    
+
     // Convert number inputs to actual numbers
     if (type === 'number') {
       const numValue = input.value === '' ? 0 : parseFloat(input.value);
@@ -145,12 +157,24 @@ const AdminDashboard = () => {
       alert('Please enter at least one size');
       return;
     }
-    if (formData.images.length === 0) {
+    if (formData.images.length === 0 && selectedFiles.length === 0) {
       alert('Please provide at least one image');
       return;
     }
 
+    setUploading(true);
+
     try {
+      let updatedImages = [...formData.images];
+
+      // Upload new files to Cloudinary
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const url = await uploadToCloudinary(file);
+          updatedImages.push(url);
+        }
+      }
+
       const { error } = await supabase
         .from('Products')
         .update({
@@ -164,7 +188,7 @@ const AdminDashboard = () => {
           is_in_stock: formData.is_in_stock,
           low_stock_threshold: formData.low_stock_threshold,
           Size: formData.Size,
-          images: formData.images,
+          images: updatedImages,
           colors: formData.colors,
         })
         .eq('product_id', editingProduct.product_id);
@@ -202,6 +226,7 @@ const AdminDashboard = () => {
         images: [],
         colors: [],
       });
+      setSelectedFiles([]);
       setEditingProduct(null);
       setIsEditFormOpen(false);
 
@@ -209,6 +234,8 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Unexpected error updating product:', error);
       alert('An unexpected error occurred while updating the product');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -439,52 +466,69 @@ const AdminDashboard = () => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 font-semibold text-gray-700 text-sm">Images *</label>
-                {formData.images.map((url, index) => (
-                  <div key={index} className="flex gap-2 mb-2 items-center">
-                    <input
-                      type="text"
-                      value={url}
-                      onChange={(e) => {
-                        const newImages = [...formData.images];
-                        newImages[index] = e.target.value;
-                        setFormData(prev => ({ ...prev, images: newImages }));
-                      }}
-                      placeholder="https://example.com/image1.jpg"
-                      className="flex-1 p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      required
-                    />
-                    {url && (
-                      <img
-                        src={url}
-                        alt={`Preview ${index + 1}`}
-                        className="w-16 h-16 object-cover border border-gray-300 rounded-lg"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newImages = formData.images.filter((_, i) => i !== index);
-                        setFormData(prev => ({ ...prev, images: newImages }));
-                      }}
-                      className="px-3 py-3 bg-red-600 text-white rounded-lg font-semibold transition-all hover:bg-red-500"
-                    >
-                      Remove
-                    </button>
+                <label htmlFor="images" className="block mb-2 font-semibold text-gray-700 text-sm">Images/Videos *</label>
+                <input
+                  type="file"
+                  id="images"
+                  name="images"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-semibold text-gray-700">Selected files: {selectedFiles.length}</p>
+                    <ul className="list-disc list-inside text-sm text-gray-600 mt-2">
+                      {selectedFiles.map((file, index) => (
+                        <li key={index} className="text-gray-700">{file.name}</li>
+                      ))}
+                    </ul>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, images: [...prev.images, ''] }));
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold transition-all hover:bg-blue-500"
-                >
-                  Add Image
-                </button>
+                )}
+                {formData.images.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Existing Images:</p>
+                    <div className="space-y-2">
+                      {formData.images.map((url, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={url}
+                            onChange={(e) => {
+                              const newImages = [...formData.images];
+                              newImages[index] = e.target.value;
+                              setFormData(prev => ({ ...prev, images: newImages }));
+                            }}
+                            placeholder="https://example.com/image1.jpg"
+                            className="flex-1 p-3 border border-gray-300 rounded-lg text-base font-inherit transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            required
+                          />
+                          {url && (
+                            <img
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-16 h-16 object-cover border border-gray-300 rounded-lg"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newImages = formData.images.filter((_, i) => i !== index);
+                              setFormData(prev => ({ ...prev, images: newImages }));
+                            }}
+                            className="px-3 py-3 bg-red-600 text-white rounded-lg font-semibold transition-all hover:bg-red-500"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mb-5">
@@ -536,8 +580,8 @@ const AdminDashboard = () => {
               </div>
 
               <div className="flex gap-4 mt-8 justify-end">
-                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-blue-500 hover:-translate-y-0.5 hover:shadow-lg">
-                  Update Product
+                <button type="submit" disabled={uploading} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-blue-500 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                  {uploading ? 'Updating...' : 'Update Product'}
                 </button>
                 <button type="button" className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer transition-all hover:bg-gray-500" onClick={handleCancel}>
                   Cancel
