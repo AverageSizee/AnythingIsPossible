@@ -59,7 +59,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="text-2xl font-bold tracking-wider cursor-pointer" onClick={() => navigate('/')}>AIP</div>
 
-        <nav className="hidden md:flex gap-8 text-sm font-medium">
+        <nav className="hidden md:flex gap-8 text-sm font-bold">
           <a href="#" onClick={(e) => { e.preventDefault(); navigate('/') }} className="hover:text-neutral-400 transition">
             HOME
           </a>
