@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import type { Product } from '../types/Product';
 import { uploadToCloudinary } from '../services/CloudinaryService';
 import AdminNavbar from '../Component/AdminNavbar';
 
@@ -179,7 +178,7 @@ const AddProduct = () => {
       console.log('Form data before insert:', formData);
       console.log('Image URLs:', imageUrls);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('Products')
         .insert([
           {
@@ -196,8 +195,7 @@ const AddProduct = () => {
             images: imageUrls,
             colors: formData.colors,
           }
-        ])
-        .select();
+        ]);
 
       if (error) {
         console.error('Error adding product:', error);
