@@ -18,16 +18,12 @@
 
 ## Preview
 <p align="center">
-  <img src="AIP-app/example.png" alt="Project Preview" width="600">
+  <img src="./AIP-app/example.png" alt="Project Preview" width="600">
 </p>
 
 # AnythingIsPossible 🎉
 
-Providing a platform that promotes items that may not be well-recognized within the
-campus. It also allows students to easily find products available from other students on
-campus. Additionally, the application ensures that buyers can verify the legitimacy of the
-items through setting up meet-ups within the school premises, creating a safer and more trustworthy buying experience. This solution directly addresses the visibility and sales challenges for student entrepreneurs, while offering
-convenience and security for buyers.
+An e-commerce website for a freelance project and a client's brand, specializing in selling clothing and apparel products. The platform provides a user-friendly interface for customers to browse collections, view product details, and make secure purchases online. Built to promote the brand's items effectively, it ensures a smooth shopping experience with features like product listings, search, and checkout.
 
 ---
 
@@ -54,5 +50,3 @@ This project is currently under development. Contributions, bug reports, and sug
 
 ---
 
-🧑‍💻 Contributors:
-- [Your Name Here]
