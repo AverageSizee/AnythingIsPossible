@@ -18,7 +18,7 @@
 
 ## Preview
 <p align="center">
-  <img src="./AIP-app/example.png" alt="Project Preview" width="600">
+  <img src="./example.png" alt="Project Preview" width="600">
 </p>
 
 # AnythingIsPossible 🎉
