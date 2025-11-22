@@ -17,9 +17,7 @@
 </p>
 
 ## Preview
-<p align="center">
-  <img src="./example.png" alt="Project Preview" width="600">
-</p>
+![Preview of the website](example.png)
 
 # AnythingIsPossible 🎉
 
